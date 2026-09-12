@@ -1,0 +1,21 @@
+services:
+
+  postgres:
+    image: postgis/postgis:17-3.5
+    container_name: adama-postgres
+
+    environment:
+      POSTGRES_DB: adama_smart_city
+      POSTGRES_USER: adama_admin
+      POSTGRES_PASSWORD: adama_password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
