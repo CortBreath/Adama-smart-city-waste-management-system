@@ -124,15 +124,14 @@ export default function BinPage() {
     const token = localStorage.getItem("access_token");
 
     const response = await fetch(
-      `http://127.0.0.1:8000/api/bins/${binId}/readings`,
-      {
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
+  `http://127.0.0.1:8000/api/bins/${binId}/readings?range=${historyRange}&limit=1000`,
+  {
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
     if (!response.ok) {
       throw new Error(`History API returned ${response.status}`);
     }
@@ -161,26 +160,7 @@ setHistory(sortedData);
   }, 3000);
 
   return () => clearInterval(interval);
-}, [binId]);
-
-const filteredHistory = history.filter((reading) => {
-  if (historyRange === "all") {
-    return true;
-  }
-
-  const now = Date.now();
-  const readingTime = new Date(reading.recorded_at).getTime();
-
-  const hours =
-    historyRange === "1h"
-      ? 1
-      : historyRange === "6h"
-        ? 6
-        : 24;
-
-  return now - readingTime <= hours * 60 * 60 * 1000;
-});
-
+}, [binId, historyRange]);
   if (loading) {
     return (
       <main className="bin-dashboard">
@@ -689,7 +669,7 @@ const filteredHistory = history.filter((reading) => {
     </select>
 
     <div className="history-count">
-      {filteredHistory.length} readings
+      {history.length} readings
     </div>
 
   </div>
@@ -709,11 +689,11 @@ const filteredHistory = history.filter((reading) => {
 
     <div className="history-chart">
 
-      {filteredHistory.length > 0 ? (
+     {history.length > 0 ?  (
         <ResponsiveContainer width="100%" height={320}>
 
           <LineChart
-            data={filteredHistory}
+            data={history}
             margin={{
               top: 10,
               right: 20,
@@ -784,11 +764,11 @@ const filteredHistory = history.filter((reading) => {
 
     <div className="history-chart">
 
-      {filteredHistory.length > 0 ? (
+     {history.length > 0 ? (
         <ResponsiveContainer width="100%" height={300}>
 
           <LineChart
-            data={filteredHistory}
+            data={history}
             margin={{
               top: 10,
               right: 20,
@@ -858,11 +838,11 @@ const filteredHistory = history.filter((reading) => {
 
     <div className="history-chart">
 
-      {filteredHistory.length > 0 ? (
+      {history.length > 0 ? (
         <ResponsiveContainer width="100%" height={300}>
 
           <LineChart
-            data={filteredHistory}
+            data={history}
             margin={{
               top: 10,
               right: 20,
