@@ -365,11 +365,18 @@ async def get_bin(
 @app.get("/api/bins/{bin_id}/readings")
 async def get_bin_readings(
     bin_id: str,
-    limit: int = 100,
+    range: str = "all",
+    limit: int = 1000,
     current_user: dict = Depends(require_admin),
 ):
     """
     Return telemetry history for one bin.
+
+    Supported ranges:
+        all  - all available readings
+        1h   - last 1 hour
+        6h   - last 6 hours
+        24h  - last 24 hours
     """
 
     # Protect API from unreasonable values.
@@ -378,6 +385,13 @@ async def get_bin_readings(
 
     if limit > 1000:
         limit = 1000
+
+    # Convert the allowed range into a number of hours.
+    range_hours = {
+        "1h": 1,
+        "6h": 6,
+        "24h": 24,
+    }.get(range)
 
     query = text(
         """
@@ -398,7 +412,13 @@ async def get_bin_readings(
 
         WHERE bin_id = :bin_id
 
-        ORDER BY recorded_at DESC
+          AND (
+              :range_hours IS NULL
+              OR recorded_at >= NOW()
+                  - (:range_hours * INTERVAL '1 hour')
+          )
+
+        ORDER BY recorded_at ASC
 
         LIMIT :limit
         """
@@ -412,6 +432,7 @@ async def get_bin_readings(
                 query,
                 {
                     "bin_id": bin_id,
+                    "range_hours": range_hours,
                     "limit": limit,
                 },
             )
@@ -422,7 +443,6 @@ async def get_bin_readings(
 
             for row in rows:
 
-                # Convert SQLAlchemy RowMapping to a normal dictionary.
                 reading = dict(row)
 
                 # Convert timestamp to ISO format.
@@ -462,7 +482,7 @@ async def startup_event():
     print("Adama Smart City API")
     print("=" * 60)
     print("Database: PostgreSQL/PostGIS")
-    print("MQTT broker: broker.emqx.io")
+    print("MQTT broker: test.mosquitto.org")
     print("API: http://127.0.0.1:8000")
     print("Docs: http://127.0.0.1:8000/docs")
     print("=" * 60)
