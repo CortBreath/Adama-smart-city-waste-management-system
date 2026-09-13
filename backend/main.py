@@ -412,12 +412,11 @@ async def get_bin_readings(
 
         WHERE bin_id = :bin_id
 
-          AND (
-              :range_hours IS NULL
-              OR recorded_at >= NOW()
-                  - (:range_hours * INTERVAL '1 hour')
-          )
-
+         AND (
+         CAST(:range_hours AS INTEGER) IS NULL
+        OR recorded_at >= NOW()
+        - (CAST(:range_hours AS INTEGER) * INTERVAL '1 hour')
+)
         ORDER BY recorded_at ASC
 
         LIMIT :limit
