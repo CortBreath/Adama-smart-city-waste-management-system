@@ -63,7 +63,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-
+  const [authChecking, setAuthChecking] = useState(true);
   async function loadBins() {
   try {
     const token = localStorage.getItem("access_token");
@@ -89,11 +89,22 @@ export default function Home() {
   }
 }
 
-  useEffect(() => {
-    loadBins();
-    const interval = setInterval(loadBins, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    useEffect(() => {
+  const token = localStorage.getItem("access_token");
+
+  if (!token) {
+    window.location.replace("/login");
+    return;
+  }
+
+  setAuthChecking(false);
+
+  loadBins();
+
+  const interval = setInterval(loadBins, 5000);
+
+  return () => clearInterval(interval);
+}, []);
 
   const normalBins = useMemo(
     () => bins.filter((bin) => normalizeStatus(bin.system_status) === "NORMAL").length,
@@ -150,6 +161,23 @@ export default function Home() {
         message: "All monitored waste bins are operating within normal limits.",
       };
 
+   if (authChecking) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "Inter, sans-serif",
+          color: "#10233f",
+        }}
+      >
+        Checking authentication...
+      </div>
+    );
+  }
+     
   return (
     <main className="dashboard">
       <header className="dashboard-header">
