@@ -92,7 +92,7 @@ export default function BinPage() {
     const token = localStorage.getItem("access_token");
 
     const response = await fetch(
-      `http://127.0.0.1:8000/api/bins/${binId}`,
+      `https://adama-smart-city-api.onrender.com/api/bins/${binId}`,
       {
         cache: "no-store",
         headers: {
@@ -124,7 +124,7 @@ export default function BinPage() {
     const token = localStorage.getItem("access_token");
 
     const response = await fetch(
-  `http://127.0.0.1:8000/api/bins/${binId}/readings?range=${historyRange}&limit=1000`,
+  `https://adama-smart-city-api.onrender.com/api/bins/${binId}/readings?range=${historyRange}&limit=1000`,
   {
     cache: "no-store",
     headers: {

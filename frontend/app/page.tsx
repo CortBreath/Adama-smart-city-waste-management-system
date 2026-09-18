@@ -91,7 +91,7 @@ export default function Home() {
   try {
     const token = localStorage.getItem("access_token");
 
-    const response = await fetch("http://127.0.0.1:8000/api/bins", {
+    const response = await fetch("https://adama-smart-city-api.onrender.com/api/bins", {
       cache: "no-store",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -119,7 +119,7 @@ async function loadActiveAlerts() {
     const token = localStorage.getItem("access_token");
 
     const response = await fetch(
-      "http://127.0.0.1:8000/api/alerts/active",
+      "https://adama-smart-city-api.onrender.com/api/alerts/active",
       {
         cache: "no-store",
         headers: {
@@ -601,3 +601,4 @@ async function loadActiveAlerts() {
     </main>
   );
 }
+
