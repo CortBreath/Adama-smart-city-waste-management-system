@@ -16,9 +16,11 @@ frontend/.next/
 
 # OS
 .DS_Store
-Thumbs.dbbackend.rar
+Thumbs.db
+
+# Local backup archives
+backend.rar
 backend.zip
 dashboard-backup.zip
 dashboard-before-rollback.zip
 frontend.zip
-backend.rar
