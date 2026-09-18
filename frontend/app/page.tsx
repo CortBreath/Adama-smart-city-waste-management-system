@@ -20,6 +20,21 @@ type Bin = {
   recorded_at: string | null;
 };
 
+type Alert = {
+  id: number;
+  bin_id: string;
+  alert_type: string;
+  severity: string;
+  message: string;
+  created_at: string;
+  resolved_at: string | null;
+  assigned_janitor_id: number | null;
+  janitor_name: string | null;
+  trigger_fill_level: number | null;
+  cleanup_notification_sent: boolean;
+  status: string;
+};
+
 function normalizeStatus(status: string | null | undefined) {
   return (status ?? "").toUpperCase();
 }
@@ -35,15 +50,15 @@ function getStatusClass(status: string | null | undefined) {
 
 function getFillClass(fill: number | null) {
   if (fill === null) return "progress-unknown";
-  if (fill >= 80) return "progress-critical";
-  if (fill >= 50) return "progress-warning";
+  if (fill >= 90) return "progress-critical";
+  if (fill >= 60) return "progress-warning";
   return "progress-normal";
 }
 
 function getFillLabel(fill: number | null) {
   if (fill === null) return "No data";
-  if (fill >= 80) return "Critical";
-  if (fill >= 50) return "Warning";
+  if (fill >= 90) return "Critical";
+  if (fill >= 60) return "Warning";
   return "Normal";
 }
 
@@ -64,6 +79,14 @@ export default function Home() {
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
+  const [apiConnected, setApiConnected] = useState(false);
+  const [activeAlerts, setActiveAlerts] = useState<Alert[]>([]);
+
+  function handleLogout() {
+  localStorage.removeItem("access_token");
+  window.location.replace("/login");
+  }
+
   async function loadBins() {
   try {
     const token = localStorage.getItem("access_token");
@@ -79,13 +102,41 @@ export default function Home() {
 
     const data: Bin[] = await response.json();
     setBins(data);
+    setApiConnected(true);
     setError("");
     setLastUpdated(new Date().toISOString());
   } catch (err) {
-    console.error(err);
-    setError("Unable to connect to the Adama Smart City API.");
-  } finally {
+  console.error(err);
+  setApiConnected(false);
+  setError("Unable to connect to the Adama Smart City API.");
+  }finally {
     setLoading(false);
+  }
+}
+
+async function loadActiveAlerts() {
+  try {
+    const token = localStorage.getItem("access_token");
+
+    const response = await fetch(
+      "http://127.0.0.1:8000/api/alerts/active",
+      {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Alerts API returned ${response.status}`);
+    }
+
+    const data: Alert[] = await response.json();
+
+    setActiveAlerts(data);
+  } catch (err) {
+    console.error("Unable to load active alerts:", err);
   }
 }
 
@@ -100,8 +151,12 @@ export default function Home() {
   setAuthChecking(false);
 
   loadBins();
+  loadActiveAlerts();
 
-  const interval = setInterval(loadBins, 5000);
+  const interval = setInterval(() => {
+   loadBins();
+   loadActiveAlerts();
+  }, 5000);
 
   return () => clearInterval(interval);
 }, []);
@@ -190,12 +245,22 @@ export default function Home() {
         </div>
 
         <div className="header-right">
-          <div className="live">
-            <span className="live-dot" />
-            LIVE
-          </div>
-          <div className="header-api">API Connected</div>
-        </div>
+     <div className="live">
+    <span className="live-dot" />
+     LIVE
+   </div>
+
+  <div className={`header-api ${apiConnected ? "connected" : "disconnected"}`}>
+  {apiConnected ? "API Connected" : "API Disconnected"}
+</div>
+
+  <button
+    className="logout-button"
+    onClick={handleLogout}
+  >
+    Logout
+  </button>
+</div>
       </header>
 
       <section className="dashboard-content">
@@ -237,7 +302,78 @@ export default function Home() {
             {cityStatus.message}
           </div>
         </div>
+        <div className="active-alerts-panel">
+  <div className="active-alerts-header">
+    <div>
+      <div className="section-eyebrow">DECISION ENGINE</div>
+      <h3>Active Alerts</h3>
+      <p>Current collection and environmental alerts requiring attention</p>
+    </div>
 
+    <span className="active-alert-count">
+      {activeAlerts.length}
+    </span>
+  </div>
+
+  {activeAlerts.length === 0 ? (
+    <div className="no-active-alerts">
+      <span>✓</span>
+      <div>
+        <strong>No active alerts</strong>
+        <p>BIN-001 is currently operating without open collection or environmental alerts.</p>
+      </div>
+    </div>
+  ) : (
+    <div className="active-alert-list">
+      {activeAlerts.map((alert) => (
+        <div
+          key={alert.id}
+          className={`active-alert ${alert.severity.toLowerCase()}`}
+        >
+          <div className="active-alert-icon">!</div>
+
+          <div className="active-alert-content">
+            <div className="active-alert-top">
+              <strong>{alert.bin_id}</strong>
+
+              <span
+                className={`active-alert-severity ${alert.severity.toLowerCase()}`}
+              >
+                {alert.severity}
+              </span>
+            </div>
+
+           <p>
+             {alert.alert_type === "FULL_BIN"
+             ? `Collection required at ${
+             alert.trigger_fill_level !== null
+             ? `${Number(alert.trigger_fill_level).toFixed(1)}%`
+             : "--"
+             }.`
+             : alert.alert_type === "SMOKE_DETECTED"
+             ? "Smoke detected inside the bin. Immediate inspection required."
+             : alert.alert_type === "HIGH_TEMPERATURE"
+             ? "High temperature detected inside the bin. Immediate inspection required."
+             : alert.alert_type === "SMOKE_AND_HIGH_TEMPERATURE"
+             ? "Smoke and high temperature detected inside the bin. Immediate inspection required."
+             : alert.message}
+          </p>
+
+            <div className="active-alert-meta">
+              <span>
+                👷 {alert.janitor_name ?? "No janitor assigned"}
+              </span>
+
+              <span>
+                🕒 {formatTime(alert.created_at)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
         <div className="summary-grid">
           <div className="summary-card">
             <div className="summary-card-top">

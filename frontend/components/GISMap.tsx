@@ -34,19 +34,22 @@ type GISMapProps = {
 ========================================================= */
 
 function getStatus(bin: Bin) {
-  const status = (bin.system_status ?? "").toUpperCase();
+  const fill = bin.fill_level_pct;
 
-  if (status === "CRITICAL" || status === "FULL") {
+  if (fill === null || fill === undefined) {
+    return "unknown";
+  }
+
+  if (fill >= 90) {
     return "critical";
   }
 
-  if (status === "WARNING") {
+  if (fill >= 60) {
     return "warning";
   }
 
   return "normal";
 }
-
 
 /* =========================================================
    COLORED BIN ICON
@@ -182,7 +185,13 @@ export default function GISMap({ bins }: GISMapProps) {
                     fontSize: "12px",
                   }}
                 >
-                  {bin.system_status ?? "NO DATA"}
+                  {status === "critical"
+                   ? "CRITICAL / FULL"
+                   : status === "warning"
+                   ? "WARNING"
+                   : status === "normal"
+                   ? "NORMAL"
+                   : "NO DATA"}
                 </div>
 
 

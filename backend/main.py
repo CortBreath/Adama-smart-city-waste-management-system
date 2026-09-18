@@ -469,6 +469,205 @@ async def get_bin_readings(
             detail=f"Unable to retrieve readings: {exc}",
         )
 
+    # ============================================================
+# GET ALERT HISTORY
+# ============================================================
+
+@app.get("/api/alerts")
+async def get_alerts(
+    limit: int = 100,
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Return alert history for the operational bin BIN-001.
+
+    Newest alerts are returned first.
+    """
+
+    # Protect API from unreasonable values.
+    if limit < 1:
+        limit = 1
+
+    if limit > 100:
+        limit = 100
+
+    query = text(
+        """
+        SELECT
+            a.id,
+            a.bin_id,
+            a.alert_type,
+            a.severity,
+            a.message,
+            a.created_at,
+            a.resolved_at,
+            a.assigned_janitor_id,
+            j.name AS janitor_name,
+            a.trigger_fill_level,
+            a.cleanup_notification_sent
+
+        FROM alerts AS a
+
+        LEFT JOIN janitors AS j
+            ON j.id = a.assigned_janitor_id
+
+        WHERE a.bin_id = 'BIN-001'
+
+        ORDER BY a.created_at DESC
+
+        LIMIT :limit
+        """
+    )
+
+    try:
+
+        with engine.connect() as connection:
+
+            result = connection.execute(
+                query,
+                {
+                    "limit": limit,
+                },
+            )
+
+            rows = result.mappings().all()
+
+            alerts = []
+
+            for row in rows:
+
+                alert = dict(row)
+
+                # Convert timestamps to ISO format.
+                if isinstance(
+                    alert.get("created_at"),
+                    datetime,
+                ):
+                    alert["created_at"] = (
+                        alert["created_at"].isoformat()
+                    )
+
+                if isinstance(
+                    alert.get("resolved_at"),
+                    datetime,
+                ):
+                    alert["resolved_at"] = (
+                        alert["resolved_at"].isoformat()
+                    )
+
+                # Convert numeric database value to float.
+                if alert.get("trigger_fill_level") is not None:
+                    alert["trigger_fill_level"] = float(
+                        alert["trigger_fill_level"]
+                    )
+
+                # Convenient status for the frontend.
+                alert["status"] = (
+                    "RESOLVED"
+                    if alert["resolved_at"] is not None
+                    else "OPEN"
+                )
+
+                alerts.append(alert)
+
+            return alerts
+
+    except SQLAlchemyError as exc:
+
+        print("=" * 60)
+        print("DATABASE ERROR - /api/alerts")
+        print(repr(exc))
+        print("=" * 60)
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to retrieve alerts: {exc}",
+        )
+
+
+# ============================================================
+# GET ACTIVE ALERTS
+# ============================================================
+
+@app.get("/api/alerts/active")
+async def get_active_alerts(
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Return currently open alerts for BIN-001.
+    """
+
+    query = text(
+        """
+        SELECT
+            a.id,
+            a.bin_id,
+            a.alert_type,
+            a.severity,
+            a.message,
+            a.created_at,
+            a.assigned_janitor_id,
+            j.name AS janitor_name,
+            a.trigger_fill_level,
+            a.cleanup_notification_sent
+
+        FROM alerts AS a
+
+        LEFT JOIN janitors AS j
+            ON j.id = a.assigned_janitor_id
+
+        WHERE a.bin_id = 'BIN-001'
+          AND a.resolved_at IS NULL
+
+        ORDER BY a.created_at DESC
+        """
+    )
+
+    try:
+
+        with engine.connect() as connection:
+
+            result = connection.execute(query)
+
+            rows = result.mappings().all()
+
+            alerts = []
+
+            for row in rows:
+
+                alert = dict(row)
+
+                if isinstance(
+                    alert.get("created_at"),
+                    datetime,
+                ):
+                    alert["created_at"] = (
+                        alert["created_at"].isoformat()
+                    )
+
+                if alert.get("trigger_fill_level") is not None:
+                    alert["trigger_fill_level"] = float(
+                        alert["trigger_fill_level"]
+                    )
+
+                alert["status"] = "OPEN"
+
+                alerts.append(alert)
+
+            return alerts
+
+    except SQLAlchemyError as exc:
+
+        print("=" * 60)
+        print("DATABASE ERROR - /api/alerts/active")
+        print(repr(exc))
+        print("=" * 60)
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to retrieve active alerts: {exc}",
+        )
+
 
 # ============================================================
 # STARTUP MESSAGE
@@ -481,7 +680,7 @@ async def startup_event():
     print("Adama Smart City API")
     print("=" * 60)
     print("Database: PostgreSQL/PostGIS")
-    print("MQTT broker: test.mosquitto.org")
+    print("MQTT broker: broker.emqx.io")
     print("API: http://127.0.0.1:8000")
     print("Docs: http://127.0.0.1:8000/docs")
     print("=" * 60)

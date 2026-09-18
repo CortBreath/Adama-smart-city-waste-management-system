@@ -438,9 +438,9 @@ export default function LoginPage() {
 
           z-index: 2;
 
-          width: min(100%, 510px);
+          width: min(100%, 450px);
 
-          padding: 34px 38px 27px;
+          padding: 28px 32px 23px;
 
           background: rgba(255, 255, 255, 0.97);
 

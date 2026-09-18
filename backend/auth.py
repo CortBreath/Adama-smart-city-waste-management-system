@@ -35,9 +35,8 @@ pwd_context = CryptContext(
 # ============================================================
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/auth/login"
+    tokenUrl="/api/auth/login/oauth2"
 )
-
 
 def verify_password(
     plain_password: str,

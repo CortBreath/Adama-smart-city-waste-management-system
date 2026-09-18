@@ -1,14 +1,17 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 
 from database import DATABASE_URL
 from auth import verify_password, create_access_token
 
+
 router = APIRouter(
     prefix="/api/auth",
     tags=["Authentication"],
 )
+
 
 engine = create_engine(
     DATABASE_URL,
@@ -16,14 +19,23 @@ engine = create_engine(
 )
 
 
+# ============================================================
+# FRONTEND LOGIN REQUEST
+# ============================================================
+
 class LoginRequest(BaseModel):
     username: str
     password: str
 
 
-@router.post("/login")
-async def login(credentials: LoginRequest):
+# ============================================================
+# SHARED LOGIN LOGIC
+# ============================================================
 
+def authenticate_user(
+    username: str,
+    password: str,
+):
     query = text("""
         SELECT
             username,
@@ -35,9 +47,12 @@ async def login(credentials: LoginRequest):
     """)
 
     with engine.connect() as connection:
+
         result = connection.execute(
             query,
-            {"username": credentials.username},
+            {
+                "username": username,
+            },
         )
 
         user = result.mappings().first()
@@ -46,7 +61,9 @@ async def login(credentials: LoginRequest):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password.",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
         )
 
     if not user["is_active"]:
@@ -56,13 +73,15 @@ async def login(credentials: LoginRequest):
         )
 
     if not verify_password(
-        credentials.password,
+        password,
         user["password_hash"],
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password.",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
         )
 
     access_token = create_access_token(
@@ -76,3 +95,49 @@ async def login(credentials: LoginRequest):
         "username": user["username"],
         "role": user["role"],
     }
+
+
+# ============================================================
+# FRONTEND JSON LOGIN
+# ============================================================
+
+@router.post("/login")
+async def login(
+    credentials: LoginRequest,
+):
+    """
+    Login endpoint used by the frontend.
+
+    Accepts JSON:
+    {
+        "username": "...",
+        "password": "..."
+    }
+    """
+
+    return authenticate_user(
+        username=credentials.username,
+        password=credentials.password,
+    )
+
+
+# ============================================================
+# SWAGGER / OAUTH2 LOGIN
+# ============================================================
+
+@router.post("/login/oauth2")
+async def login_oauth2(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+):
+    """
+    OAuth2-compatible login endpoint for Swagger.
+
+    Accepts form data:
+        username
+        password
+    """
+
+    return authenticate_user(
+        username=form_data.username,
+        password=form_data.password,
+    )
