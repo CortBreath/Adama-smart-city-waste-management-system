@@ -6,19 +6,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from auth_routes import router as auth_router
 from auth import require_admin
-
-
-# ============================================================
-# DATABASE CONFIGURATION
-# ============================================================
-
-DATABASE_URL = (
-    "postgresql+psycopg://"
-    "adama_admin:adama_password"
-    "@localhost:5432/"
-    "adama_smart_city"
-)
-
+from database import DATABASE_URL
 
 # ============================================================
 # DATABASE ENGINE
